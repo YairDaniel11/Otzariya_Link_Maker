@@ -1,0 +1,105 @@
+# בונה את OtzariaLinker.exe ומפרסם אותו כ-Release, בכל דחיפה שנוגעת בקוד התוכנה.
+#
+# שם הנכס ב-Release הוא באנגלית במכוון: GitHub מחליף תווים שאינם ASCII בשם קובץ הנכס בנקודות.
+name: build-release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.py'
+      - 'tests/**'
+      - '.github/workflows/build-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: התקנת PyInstaller
+        run: python -m pip install --upgrade pip pyinstaller
+
+      - name: בדיקות יחידה (בלי רשת ובלי seforim.db)
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python -X utf8 -m unittest discover -s tests -v
+
+      - name: קריאת מספר הגרסה מ-gui.py
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path gui.py -Pattern "^VERSION\s*=\s*['""]([^'""]+)['""]").Matches[0].Groups[1].Value
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=v$v-build${{ github.run_number }}" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: בניית ה-EXE
+        run: >
+          pyinstaller --noconfirm --clean --onefile --windowed
+          --name OtzariaLinker
+          --hidden-import tkinter.simpledialog
+          gui.py
+
+      - name: אימות שה-EXE נבנה
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'dist/OtzariaLinker.exe')) { throw 'ה-EXE לא נבנה' }
+          $size = (Get-Item 'dist/OtzariaLinker.exe').Length
+          Write-Output "exe size: $size"
+          if ($size -lt 3MB) { throw "ה-EXE קטן מהצפוי ($size בתים)" }
+
+      # --selftest מריץ את הליבה ללא מסך ויוצא. התוצאה נקראת מקובץ,
+      # כי ל-EXE --windowed אין קונסולה.
+      - name: בדיקת ה-EXE ללא מסך
+        shell: pwsh
+        run: |
+          $log = Join-Path $PWD 'selftest.log'
+          if (Test-Path $log) { Remove-Item $log }
+          $p = Start-Process 'dist/OtzariaLinker.exe' -ArgumentList '--selftest', $log -PassThru
+          if (-not $p.WaitForExit(120000)) { $p.Kill(); throw 'ה-EXE לא הסתיים: נתקע' }
+          if (Test-Path $log) { Get-Content $log -Encoding utf8 }
+          if ($p.ExitCode -ne 0) { throw "הבדיקה נכשלה, קוד $($p.ExitCode)" }
+          if (-not (Select-String -Path $log -Pattern 'SELFTEST OK' -Quiet)) { throw 'הבדיקה לא דיווחה הצלחה' }
+
+      - name: בדיקה שהתוכנה נפתחת כחלון ולא קורסת
+        shell: pwsh
+        run: |
+          $p = Start-Process 'dist/OtzariaLinker.exe' -PassThru
+          Start-Sleep -Seconds 20
+          if ($p.HasExited) { throw "התוכנה נפלה מיד עם ההפעלה (קוד $($p.ExitCode))" }
+          Stop-Process -Id $p.Id -Force
+          Write-Output 'החלון נפתח ונשאר חי'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OtzariaLinker-${{ steps.ver.outputs.version }}
+          path: dist/OtzariaLinker.exe
+          if-no-files-found: error
+
+      - name: פרסום Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: מחולל קישורים לאוצריא ${{ steps.ver.outputs.version }} (build ${{ github.run_number }})
+          body: |
+            נבנה אוטומטית מ-`${{ github.sha }}`.
+
+            **מחולל קישורים לאוצריא** גרסה ${{ steps.ver.outputs.version }}
+            הורדה: `OtzariaLinker.exe` (Windows, קובץ בודד, ללא התקנה).
+            דורש אוצריא מותקנת (קורא את `seforim.db` לקריאה בלבד).
+          files: dist/OtzariaLinker.exe
+          draft: false
+          prerelease: false
