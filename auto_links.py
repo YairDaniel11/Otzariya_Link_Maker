@@ -143,6 +143,8 @@ def main():
         if stem in done or len(lst) != 1:
             continue
         rel, path = lst[0]
+        if not rel or stem.lower() == 'readme':
+            continue  # כמו בבניית ה-DB: לא קבצי שורש ולא README
         lines = C.read_lines(path)
         if C.is_lfs_pointer(lines):
             continue
