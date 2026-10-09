@@ -330,7 +330,8 @@ KIND_LABELS = {
 
 def detect_kind(rel, stem):
     """קובע לפי נתיב ושם הקובץ איזה מנוע מובנה מתאים לספר (כמו במאגר הספרים), או None."""
-    rel = tuple(rel)
+    # במאגר הפשוט התיקייה נקראת "תנך" (בלי גרשיים)
+    rel = tuple('תנ״ך' if x == 'תנך' else x for x in rel)
     if stem in HALACHA_CFG:
         return 'halacha'
     if rel[:1] == ('תנ״ך',) and len(rel) > 1 and rel[1] in ('ראשונים', 'תרגומים'):
@@ -493,6 +494,9 @@ def run_profile(lines, profile, db, stem=''):
                     break
             if not matched and lvl >= 2:
                 unmatched[text[:40]] += 1
+                # זיהוי אוטומטי: כותרת לא מזוהה ברמה של הכללים מנתקת את המיקום, כדי שלא יידבקו אליו שורות שלא שייכות
+                if profile.get('reset_on_unmatched') and any(_levels(r)[0] <= lvl <= _levels(r)[1] for r in rules if r.get('type') != 'anchor'):
+                    state['cur'] = None
             continue
         if i == 1 or not s:
             continue
@@ -575,7 +579,8 @@ def merge_into_csv(path, stem, new_rows):
 def find_books(books_dir):
     """stem -> [(rel, path)] לכל קובצי ה-txt בתיקיית הספרים (בלי תיקיית הקישורים)."""
     out = collections.defaultdict(list)
-    for dp, _, fs in os.walk(books_dir):
+    for dp, dirs, fs in os.walk(books_dir):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]  # .git, .github
         if 'קבצי קישורים' in dp:
             continue
         rel = tuple(os.path.relpath(dp, books_dir).split(os.sep))
