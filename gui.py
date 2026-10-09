@@ -18,6 +18,7 @@ from tkinter import filedialog, messagebox, ttk
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ai_providers as AI
 import linker_core as C
+import auto_links as AL
 import structure_ai as SA
 
 VERSION = '1.0'
@@ -729,6 +730,7 @@ class App(tk.Tk):
         self.cb_preset = ttk.Combobox(r, textvariable=self.v_preset, width=40, state='readonly')
         self.cb_preset.pack(side='right', padx=6)
         self.cb_preset.bind('<<ComboboxSelected>>', self.choose_preset)
+        ttk.Button(r, text='זיהוי אוטומטי לפי שם הקובץ', command=self.auto_detect).pack(side='right', padx=3)
         ttk.Button(r, text='ערוך כללים', command=self.edit_rules).pack(side='right', padx=3)
         ttk.Button(r, text='סרוק מבנה בעזרת בינה מלאכותית', command=self.ai_scan).pack(side='right', padx=3)
         ttk.Button(r, text='שמור כפרופיל', command=self.save_profile).pack(side='right', padx=3)
@@ -822,6 +824,44 @@ class App(tk.Tk):
         if d.result:
             self.profile = d.result
             self.log('כללי הכותרות עודכנו')
+
+    def auto_detect(self):
+        """מזהה את ספר היעד לפי שם הקובץ, בוחר את כללי הכותרות שמתאימים למבנה היעד, ומריץ תצוגה מקדימה.
+        זיהוי כללי: מנחש לפי השם, ולא תמיד מדויק. הקובץ הראשון קובע, והכללים חלים על כל הקבצים שנבחרו."""
+        if not self.sources:
+            messagebox.showinfo('', 'בחר קודם קובץ ספר.', parent=self); return
+        try:
+            db = self.get_db()
+        except Exception:
+            return
+        stem, L_ = self.stem0, self.lines0
+
+        def work():
+            index = {}
+            for t in db.titles():
+                index.setdefault(AL.norm(t), t)
+            target = AL.find_target(stem, index)
+            return target, (AL.infer_book_full(L_, target, db, stem) if target else None)
+
+        def done(res):
+            target, found = res
+            if not target:
+                messagebox.showinfo('', 'לא זוהה ספר יעד בשם הקובץ.\nכדי שיזוהה, שם הספר שמפרשים צריך להופיע בשם הקובץ (למשל "...על שולחן ערוך אורח חיים").\nאפשר לבחור ספר יעד וכללים ידנית.', parent=self)
+                return
+            if not found:
+                messagebox.showinfo('', f'זוהה ספר היעד "{target}", אבל כותרות הספר לא תואמות את מבנהו (פחות מחצי מהשורות קושרו).\nאפשר לבחור כללים ידנית או לנסות סריקה בעזרת בינה מלאכותית.', parent=self)
+                self.v_target.set(target)
+                return
+            rows, name, cov, prof = found
+            prof = copy.deepcopy(prof)
+            prof['name'] = 'זיהוי אוטומטי: ' + name
+            self.profile = prof
+            self.v_from_name.set(False)
+            self.v_target.set(target)
+            self.log(f'זיהוי אוטומטי: יעד "{target}", כללים "{name}", כיסוי {cov:.0%}. זהו ניחוש כללי ולא תמיד מדויק: בדוק את התצוגה המקדימה.')
+            self.preview()
+
+        self.run_bg(work, done, msg='מזהה ספר יעד...')
 
     def save_profile(self):
         name = self.profile.get('name') or ''

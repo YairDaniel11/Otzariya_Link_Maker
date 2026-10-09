@@ -86,6 +86,12 @@ def base_profiles(target, db):
 
 def infer_book(lines, target, db, stem):
     """מחזיר (rows, שם הכלל, כיסוי) של הכלל הטוב ביותר, או None."""
+    r = infer_book_full(lines, target, db, stem)
+    return r[:3] if r else None
+
+
+def infer_book_full(lines, target, db, stem):
+    """כמו infer_book, ובנוסף מחזיר את הפרופיל עצמו: (rows, שם הכלל, כיסוי, פרופיל)."""
     body = 0
     for i, l in enumerate(lines, 1):
         s = l.strip()
@@ -97,13 +103,13 @@ def infer_book(lines, target, db, stem):
     for name, prof in base_profiles(target, db):
         rows, _ = C.run_profile(lines, prof, db, stem)
         if best is None or len(rows) > len(best[0]):
-            best = (rows, name)
+            best = (rows, name, prof)
     if not best or len(best[0]) < MIN_LINKED:
         return None
     cov = len(best[0]) / body
     if cov < MIN_COVERAGE:
         return None
-    return best[0], best[1], cov
+    return best[0], best[1], cov, best[2]
 
 
 def existing_stems(links_dir):
