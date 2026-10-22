@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -32,7 +32,13 @@ class AppTitleBar extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMD),
                 child: Row(
                   children: [
-                    Icon(FluentIcons.link_24_filled, size: 20, color: theme.colorScheme.primary),
+                    Image.asset(
+                      'assets/app_icon.png',
+                      width: 20,
+                      height: 20,
+                      errorBuilder: (_, _, _) =>
+                          Icon(FluentIcons.link_24_filled, size: 20, color: theme.colorScheme.primary),
+                    ),
                     const SizedBox(width: AppTokens.spaceSM),
                     Text(
                       'מחולל קישורים וכותרות לאוצריא',
