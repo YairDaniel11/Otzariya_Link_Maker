@@ -109,7 +109,7 @@ enum InferFail { noBody, tooFew, lowCoverage }
   var body = 0;
   for (var i = 1; i <= lines.length; i++) {
     final s = lines[i - 1].trim();
-    if (i > 1 && s.isNotEmpty && !headLoose.hasMatch(s)) body++;
+    if (i > 2 && s.isNotEmpty && !headLoose.hasMatch(s) && !s.startsWith('<h')) body++;
   }
   if (body == 0) return (null, InferFail.noBody, 0);
   (LinkMap, String)? best;

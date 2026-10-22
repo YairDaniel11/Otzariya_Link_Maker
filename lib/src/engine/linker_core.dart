@@ -31,15 +31,15 @@ String? findTractate(String text) {
   return best;
 }
 
-final _dafExt = RegExp('^(?:דף\\s+)?([א-ת$quoteChars]{1,5}?)\\s*(?:,|ע[$quoteChars]?)\\s*([אב])\$');
+final _dafExt = RegExp('^(?:דף\\s+)?([א-ת$quoteChars]{1,5}?)\\s*(?:,|ע(?:מוד)?[$quoteChars]?)\\s*([אב])\$');
 
 String _stripBrackets(String t) {
   var s = t.trim();
   var a = 0, b = s.length;
-  while (a < b && (s[a] == '[' || s[a] == ']')) {
+  while (a < b && (s[a] == '[' || s[a] == ']' || s[a] == '(' || s[a] == ')')) {
     a++;
   }
-  while (b > a && (s[b - 1] == '[' || s[b - 1] == ']')) {
+  while (b > a && (s[b - 1] == '[' || s[b - 1] == ']' || s[b - 1] == '(' || s[b - 1] == ')')) {
     b--;
   }
   return s.substring(a, b).trim();
@@ -57,7 +57,11 @@ String? parseDafExt(String t) {
 /// תוצאת מנוע מובנה: קישורים, הערה, סוג קישור.
 typedef Generated = (LinkMap, String, String);
 
-bool _skipLine(int i, String s) => i == 1 || s.isEmpty || s.startsWith('<h1');
+final _headLine = RegExp(r'^<h[1-6]');
+
+/// שורה שלא מקשרים: שורה 1 (שם הספר), שורה 2 (שם המחבר או ריקה), שורה ריקה וכל שורת כותרת.
+/// לפי סקיל סידור הספרים: קישור לא יכול להצביע על שורת כותרת, ושורה 2 תמיד מחבר.
+bool _skipLine(int i, String s) => i <= 2 || s.isEmpty || _headLine.hasMatch(s);
 
 final _taj = RegExp(r"\s*\(כתאב אלתאג'\)$");
 final _targumPrefix = RegExp(r'^תרגום (שני )?(על )?');
@@ -173,7 +177,7 @@ Generated _genHalacha(List<String> rel, String stem, List<String> lines, Seforim
         cur = m != null && ch.contains(m[1]) ? m[1] : null;
         continue;
       }
-      if (i == 1 || s.isEmpty || s.startsWith('<h')) continue;
+      if (i <= 2 || s.isEmpty || s.startsWith('<h')) continue;
     } else {
       final m = _dagul.firstMatch(s);
       if (m != null) {
@@ -474,7 +478,7 @@ ProfileResult runProfile(List<String> lines, Profile profile, SeforimDb? db, [St
       }
       continue;
     }
-    if (i == 1 || s.isEmpty) continue;
+    if (_skipLine(i, s)) continue;
     if (useAnchor) {
       final m = _anchorRe.firstMatch(s);
       if (m != null) {

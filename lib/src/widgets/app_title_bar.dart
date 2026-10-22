@@ -32,10 +32,10 @@ class AppTitleBar extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: AppTokens.spaceMD),
                 child: Row(
                   children: [
-                    Icon(FluentIcons.building_bank_24_filled, size: 20, color: theme.colorScheme.primary),
+                    Icon(FluentIcons.link_24_filled, size: 20, color: theme.colorScheme.primary),
                     const SizedBox(width: AppTokens.spaceSM),
                     Text(
-                      'ספרייה אישית לאוצריא',
+                      'מחולל קישורים וכותרות לאוצריא',
                       style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ],

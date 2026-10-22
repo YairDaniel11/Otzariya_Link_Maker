@@ -6,56 +6,50 @@ import 'package:path/path.dart' as p;
 
 /// הגדרות התוכנה, נשמרות בקובץ JSON בתיקיית המשתמש (פר-מחשב).
 class Settings {
-  String booksDir = '';
   String officialDb = '';
-  String outDir = '';
-  String outName = '';
-  String displayName = 'הספרייה שלי';
+  String lastBooksDir = '';
+  String lastLinksDir = '';
+  String lastSaveDir = '';
   String author = '';
-  String libraryId = '';
-  bool autoLinks = true;
-  bool dhLines = true;
-  bool compress = true;
   ThemeMode themeMode = ThemeMode.system;
 
-  /// שם ספר -> יעד שנבחר ידנית ('' = בלי קישורים).
-  Map<String, String> overrides = {};
-
-  String get outPath =>
-      outDir.isEmpty || outName.isEmpty ? '' : p.join(outDir, outName.endsWith('.db') ? outName : '$outName.db');
+  /// בינה מלאכותית (אופציונלי): claude / gemini / openai.
+  String aiProvider = 'gemini';
+  String aiTier = 'free';
+  Map<String, String> aiKeys = {};
+  Map<String, String> aiModels = {};
 
   Map<String, Object?> toJson() => {
-    'booksDir': booksDir,
     'officialDb': officialDb,
-    'outDir': outDir,
-    'outName': outName,
-    'displayName': displayName,
+    'lastBooksDir': lastBooksDir,
+    'lastLinksDir': lastLinksDir,
+    'lastSaveDir': lastSaveDir,
     'author': author,
-    'libraryId': libraryId,
-    'autoLinks': autoLinks,
-    'dhLines': dhLines,
-    'compress': compress,
     'themeMode': themeMode.name,
-    'overrides': overrides,
+    'aiProvider': aiProvider,
+    'aiTier': aiTier,
+    'aiKeys': aiKeys,
+    'aiModels': aiModels,
   };
 
   static Settings fromJson(Map<String, Object?> j) {
     final s = Settings();
     String str(String k, String d) => j[k] is String ? j[k] as String : d;
-    bool b(String k, bool d) => j[k] is bool ? j[k] as bool : d;
-    s.booksDir = str('booksDir', '');
+    Map<String, String> map(String k) {
+      final m = j[k];
+      return m is Map ? {for (final e in m.entries) '${e.key}': '${e.value}'} : {};
+    }
+
     s.officialDb = str('officialDb', '');
-    s.outDir = str('outDir', '');
-    s.outName = str('outName', '');
-    s.displayName = str('displayName', s.displayName);
+    s.lastBooksDir = str('lastBooksDir', '');
+    s.lastLinksDir = str('lastLinksDir', '');
+    s.lastSaveDir = str('lastSaveDir', '');
     s.author = str('author', '');
-    s.libraryId = str('libraryId', '');
-    s.autoLinks = b('autoLinks', true);
-    s.dhLines = b('dhLines', true);
-    s.compress = b('compress', true);
     s.themeMode = ThemeMode.values.firstWhere((m) => m.name == j['themeMode'], orElse: () => ThemeMode.system);
-    final o = j['overrides'];
-    if (o is Map) s.overrides = {for (final e in o.entries) '${e.key}': '${e.value}'};
+    s.aiProvider = str('aiProvider', 'gemini');
+    s.aiTier = str('aiTier', 'free');
+    s.aiKeys = map('aiKeys');
+    s.aiModels = map('aiModels');
     return s;
   }
 }
@@ -65,8 +59,8 @@ class SettingsStore {
 
   static String configDir() {
     final env = Platform.environment;
-    if (Platform.isWindows && env['APPDATA'] != null) return p.join(env['APPDATA']!, 'MyLibraryOffline');
-    return p.join(env['HOME'] ?? '.', 'Library', 'Application Support', 'MyLibraryOffline');
+    if (Platform.isWindows && env['APPDATA'] != null) return p.join(env['APPDATA']!, 'OtzariaLinker');
+    return p.join(env['HOME'] ?? '.', 'Library', 'Application Support', 'OtzariaLinker');
   }
 
   static File get _file => File(p.join(configDir(), 'settings.json'));
