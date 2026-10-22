@@ -287,8 +287,8 @@ Set<String> autoPickRules(Map<String, int> counts, int lineCount) {
   for (final r in headingPresets()) {
     if (weak.contains(r.id)) continue;
     final c = counts[r.id] ?? 0;
-    final need = (r.id == 'masechet' || r.id == 'intro' || r.id == 'section') ? 1 : 2;
-    if (c >= need && c <= lineCount * 0.3) strong.add(r.id);
+    // כלל חזק (פרק, סימן, דף...) מסומן גם כשיש לו התאמה אחת: כותרת בודדת כמו "סימן ג'" היא עדיין כותרת
+    if (c >= 1 && c <= lineCount * 0.3) strong.add(r.id);
   }
   if (strong.isNotEmpty) return strong;
   final out = <String>{};

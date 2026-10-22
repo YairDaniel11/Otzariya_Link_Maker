@@ -202,21 +202,21 @@ List<HeadingRule> headingPresets() => [
         id: 'perek',
         label: 'פרק א / פרק ראשון',
         example: 'פרק א   פרק ראשון - בא הים',
-        pattern: RegExp(_kw('פרק')),
+        pattern: RegExp(_kw("פרק|פ['׳]")),
         rank: 2,
       ),
       HeadingRule(
         id: 'siman',
         label: 'סימן א',
         example: 'סימן א   סימן קכ"ג',
-        pattern: RegExp(_kw('סימן')),
+        pattern: RegExp(_kw("סימן|סי['׳]")),
         rank: 2,
       ),
       HeadingRule(
         id: 'halacha',
         label: 'הלכה א',
         example: 'הלכה א   הלכה ראשונה',
-        pattern: RegExp(_kw('הלכה')),
+        pattern: RegExp(_kw("הלכה|הל['׳]")),
         rank: 3,
       ),
       HeadingRule(
@@ -230,7 +230,7 @@ List<HeadingRule> headingPresets() => [
         id: 'seif',
         label: 'סעיף א',
         example: 'סעיף א',
-        pattern: RegExp(_kw('סעיף')),
+        pattern: RegExp(_kw("סעיף|סעי['׳]")),
         rank: 4,
       ),
       HeadingRule(

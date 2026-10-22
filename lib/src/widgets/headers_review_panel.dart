@@ -19,7 +19,11 @@ class HeadersReviewPanel extends StatefulWidget {
     required this.building,
     required this.onChanged,
     required this.onAddLine,
+    this.bookTitle = '',
   });
+
+  /// שם הספר (כותרת H1), מוצג בראש תוכן העניינים.
+  final String bookTitle;
 
   /// שורות המקור (לתצוגה מקדימה).
   final List<String> lines;
@@ -140,15 +144,19 @@ class _HeadersReviewPanelState extends State<HeadersReviewPanel> {
     return _box(
       context,
       title: 'תוכן העניינים של הספר',
-      child: heads.isEmpty
+      child: heads.isEmpty && widget.bookTitle.trim().isEmpty
           ? const Center(child: Hint('אין כותרות'))
           : ListView.builder(
-              itemCount: heads.length,
+              itemCount: heads.length + 1,
               itemExtent: 40,
               itemBuilder: (context, k) {
-                final h = heads[k];
+                if (k == 0) return _titleRow(theme);
+                final h = heads[k - 1];
                 final selected = _focus == h.index;
-                return InkWell(
+                return Tooltip(
+                  message: 'כותרת H${h.level}',
+                  waitDuration: const Duration(milliseconds: 250),
+                  child: InkWell(
                   key: ValueKey('head-${h.index}'),
                   onTap: () => _focusOn(h.index),
                   child: Container(
@@ -204,9 +212,37 @@ class _HeadersReviewPanelState extends State<HeadersReviewPanel> {
                       ],
                     ),
                   ),
+                  ),
                 );
               },
             ),
+    );
+  }
+
+  /// שורת שם הספר בראש תוכן העניינים: תמיד H1, לא ניתנת להסרה.
+  Widget _titleRow(ThemeData theme) {
+    final t = widget.bookTitle.trim();
+    return Tooltip(
+      message: 'כותרת H1 (שם הספר)',
+      waitDuration: const Duration(milliseconds: 250),
+      child: Container(
+        padding: const EdgeInsetsDirectional.symmetric(horizontal: 12),
+        alignment: AlignmentDirectional.centerStart,
+        child: Row(
+          children: [
+            Icon(FluentIcons.book_24_regular, size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                t.isEmpty ? '(שם הספר)' : t,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -318,6 +318,8 @@ class _CreateLinksScreenState extends State<CreateLinksScreen> {
               data: theme.copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 tilePadding: EdgeInsets.zero,
+                // מרווח עליון: התווית הצפה של שדה יוצאת מעל השדה, ובלי מרווח היא נחתכת בקצה האזור
+                childrenPadding: const EdgeInsets.only(top: 16, bottom: 8),
                 title: const Text('מתקדם: כללי כותרות'),
                 subtitle: const Hint('בחירת מבנה מוכן או סריקה בעזרת בינה מלאכותית'),
                 children: [

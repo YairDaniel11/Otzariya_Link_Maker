@@ -3,6 +3,7 @@ import 'package:otzaria_link_maker/src/headers/book_builder.dart';
 import 'package:otzaria_link_maker/src/headers/docx_reader.dart';
 import 'package:otzaria_link_maker/src/headers/md_import.dart';
 import 'package:otzaria_link_maker/src/headers/txt_headers.dart';
+import 'package:otzaria_link_maker/src/screens/headers/headers_jobs.dart';
 
 const _d = 'test/fixtures/docx';
 const _t = 'test/fixtures/txt';
@@ -58,5 +59,15 @@ void main() {
     final r = importMarkdownText('# ספר\n\n## פרק א\n\nטקסט **מודגש**\n\n### סימן ב\n\nעוד\n');
     final b = _build(r.lines, r.notes);
     expect(b.issues.where((i) => i.severity == IssueSeverity.error), isEmpty);
+  });
+
+  test("כותרת בודדת כמו \"סימן ג'\" וקיצורים כמו \"סי' ג\" מזוהות ונבחרות אוטומטית", () {
+    final lines = ['ספר', '', "סימן ג'", 'טקסט ארוך ' * 10, 'עוד טקסט ' * 10, "סי' ד", 'סוף ' * 10, 'עוד ' * 10, 'ועוד ' * 10, 'שוב ' * 10, 'ושוב ' * 10, 'סיום ' * 10];
+    final hs = detectHeadings(lines, headingPresets(), title: 'ספר');
+    expect(hs.where((h) => h.rule?.id == 'siman').length, 2);
+    final plains = [for (final l in lines) l];
+    final counts = {'siman': 2, 'shortLine': 3};
+    expect(autoPickRules(counts, plains.length), contains('siman'));
+    expect(autoPickRules({'siman': 1}, 40), contains('siman'));
   });
 }

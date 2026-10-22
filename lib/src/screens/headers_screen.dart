@@ -38,6 +38,11 @@ class _HeadersScreenState extends State<HeadersScreen> {
   SourceKind _kind = SourceKind.unknown;
   LoadResult? _loaded;
 
+  /// השורות כפי שנקראו מהקובץ, לפני הוצאת שורת השם.
+  LoadResult? _raw;
+  var _firstAvailable = false;
+  var _firstIsTitle = false;
+
   final _presets = headingPresets();
   final _customs = <CustomSpec>[];
   var _counts = <String, int>{};
@@ -101,10 +106,17 @@ class _HeadersScreenState extends State<HeadersScreen> {
       (onProgress, cancelled) => runJob(loadSourceJob, args, onProgress: onProgress, isCancelled: cancelled),
     );
     if (r == null || !mounted) return;
+    final first = r.lines.isEmpty ? '' : r.lines.first;
+    final firstPlain = plainText(first).trim();
+    // שורה ראשונה קצרה שאינה כותרת: מוצעת כשם הספר (H1)
+    final avail = firstPlain.isNotEmpty && firstPlain.length <= 80 && !headingOpenRe.hasMatch(first) && r.detectedTitle == null;
     setState(() {
       _path = path;
       _kind = kind;
-      _loaded = r;
+      _raw = r;
+      _firstAvailable = avail;
+      _firstIsTitle = avail;
+      _loaded = avail ? _withoutFirst(r) : r;
       _saved = const [];
       _built = null;
       _heads = [];
@@ -112,10 +124,35 @@ class _HeadersScreenState extends State<HeadersScreen> {
       _levels.clear();
       _outDir ??= p.dirname(path);
       if (!keepSizes) {
-        _title.text = r.detectedTitle ?? guessTitle(path);
+        _title.text = avail ? cleanBookTitle(firstPlain) : (r.detectedTitle ?? guessTitle(path));
         if (r.usedBase > 0) _baseSize.text = _pts(r.usedBase);
         if (r.usedNote > 0) _noteSize.text = _pts(r.usedNote);
       }
+    });
+    await _analyze(autoPick: true);
+  }
+
+  LoadResult _withoutFirst(LoadResult r) => LoadResult(
+        lines: r.lines.sublist(1),
+        notes: r.notes,
+        kind: r.kind,
+        detBase: r.detBase,
+        detNote: r.detNote,
+        usedBase: r.usedBase,
+        usedNote: r.usedNote,
+        styleHeadings: r.styleHeadings,
+        detectedTitle: r.detectedTitle,
+      );
+
+  Future<void> _toggleFirstIsTitle(bool v) async {
+    final r = _raw;
+    if (r == null) return;
+    setState(() {
+      _firstIsTitle = v;
+      _loaded = v ? _withoutFirst(r) : r;
+      _title.text = v ? cleanBookTitle(plainText(r.lines.first).trim()) : guessTitle(_path ?? '');
+      _built = null;
+      _heads = [];
     });
     await _analyze(autoPick: true);
   }
@@ -399,6 +436,15 @@ class _HeadersScreenState extends State<HeadersScreen> {
             onSubmitted: (_) => _rebuild(),
             onEditingComplete: _rebuild,
           ),
+          if (_firstAvailable)
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _firstIsTitle,
+              onChanged: c.busy ? null : (v) => _toggleFirstIsTitle(v ?? false),
+              title: const Text('השורה הראשונה בקובץ היא שם הספר'),
+              subtitle: const Text('היא תהפוך לכותרת הראשית (H1) ותוסר מגוף הספר.'),
+            ),
           if (isWord) ...[
             const SizedBox(height: AppTokens.spaceSM),
             if (_hasStyleHeadings)
@@ -416,6 +462,8 @@ class _HeadersScreenState extends State<HeadersScreen> {
               data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 tilePadding: EdgeInsets.zero,
+                // מרווח עליון: התווית הצפה של שדה יוצאת מעל השדה, ובלי מרווח היא נחתכת בקצה האזור
+                childrenPadding: const EdgeInsets.only(top: 16, bottom: 8),
                 title: const Text('מתקדם: גודל הגופן'),
                 subtitle: const Hint('לזיהוי טקסט גדול וקטן. בדרך כלל לא צריך לשנות.'),
                 initiallyExpanded: _advanced,
@@ -509,6 +557,7 @@ class _HeadersScreenState extends State<HeadersScreen> {
             building: _building,
             onChanged: _rebuild,
             onAddLine: _addHeadLine,
+            bookTitle: _title.text,
           ),
           if (l.notes.isNotEmpty) ...[
             const SizedBox(height: AppTokens.spaceSM),
@@ -516,6 +565,8 @@ class _HeadersScreenState extends State<HeadersScreen> {
               data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 tilePadding: EdgeInsets.zero,
+                // מרווח עליון: התווית הצפה של שדה יוצאת מעל השדה, ובלי מרווח היא נחתכת בקצה האזור
+                childrenPadding: const EdgeInsets.only(top: 16, bottom: 8),
                 title: const Text('מתקדם: הערות שוליים'),
                 children: [
                   RadioGroup<bool>(
