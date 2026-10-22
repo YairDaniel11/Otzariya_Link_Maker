@@ -534,6 +534,8 @@ List<_Out> _blocks(List<String> lines, _State st, {required bool top}) {
           while (stack.isNotEmpty && stack.last.indent >= li.indent) {
             stack.removeLast();
           }
+          // סוג רשימה שונה ברמה העליונה (תבליטים אחרי מספור) = רשימה חדשה
+          if (stack.isEmpty && roots.isNotEmpty && roots.last.ol != li.ol) break;
           if (stack.isEmpty) {
             roots.add(li);
           } else {

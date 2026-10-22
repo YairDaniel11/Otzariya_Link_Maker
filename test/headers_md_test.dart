@@ -103,7 +103,7 @@ void main() {
   test('HTML גולמי: פירוק תגים לא מוכרים, markdown בתוך div', () {
     final r = importMarkdownText('<div class="x">\n\n**מודגש** <span style="c">רגיל</span> <u>קו</u> <mark>סימון</mark> <b></b>\n\n</div>\n'
         '<details><summary>סיכום</summary>\n\n- פריט\n\n</details>\n');
-    expect(r.lines[0], '<b>מודגש</b> רגיל <u>קו</u> <mark>סימון</mark> ');
+    expect(r.lines[0], '<b>מודגש</b> רגיל <u>קו</u> <mark>סימון</mark>');
     expect(r.lines, contains('סיכום'));
     expect(r.lines, contains('<ul><li>פריט</li></ul>'));
     for (final l in r.lines) {
@@ -119,7 +119,7 @@ void main() {
   test('תוספות Obsidian', () {
     final r = importMarkdownText('---\ntitle: "ספר נבחר"\ntags: [a]\n---\n\n==מודגש== ו-[[דף|כינוי]] ו-[[עמוד#פרק]] #תג ![[pic.png]]\n\n> [!note] כותרת\n> גוף הערה\n');
     expect(r.detectedTitle, 'ספר נבחר');
-    expect(r.lines[0], '<mark>מודגש</mark> ו-כינוי ו-עמוד > פרק #תג ');
+    expect(r.lines[0], '<mark>מודגש</mark> ו-כינוי ו-עמוד &gt; פרק #תג');
     expect(r.lines[1], '<b>כותרת</b>');
     expect(r.lines[2], 'גוף הערה');
   });
