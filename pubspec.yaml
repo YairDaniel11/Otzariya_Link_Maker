@@ -1,0 +1,33 @@
+name: otzaria_link_maker
+description: "מחולל קישורים וכותרות לאוצריא: יצירת כותרות לספרים חדשים (Word/TXT), יצירה ובדיקה של קישורים."
+publish_to: 'none'
+
+version: 2.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  file_picker: ^13.1.0
+  path: ^1.9.1
+  fluentui_system_icons: ^1.1.273
+  ffi: ^2.2.0
+  sqlite3: ^3.7.0
+  zstandard: ^1.5.0
+  zstandard_native: ^1.5.0
+  window_manager: ^0.5.2
+  archive: ^4.0.0
+  xml: ^6.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

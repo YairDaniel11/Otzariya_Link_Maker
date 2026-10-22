@@ -1,0 +1,133 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  # ריצה אוטומטית בכל שינוי בקוד (בלי קבצי תיעוד); תג v* מפרסם גם Release
+  push:
+    branches: [main, flutter-redesign]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE'
+    tags: ['v*']
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # מספר הגרסה נקבע לפני הבנייה, כדי שהתוכנה תדע מה הגרסה שלה וה-Release יישא אותו תג.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.ver.outputs.tag }}
+      number: ${{ steps.ver.outputs.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          else
+            last=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)
+            [ -n "$last" ] || last="v1.0.-1"
+            IFS=. read -r a b c <<< "${last#v}"
+            tag="v$a.$b.$((c+1))"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "number=${tag#v}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: הפעלת פלטפורמת שולחן עבודה
+        run: flutter config --enable-${{ matrix.platform }}-desktop
+
+      - run: flutter pub get
+
+      - name: ניתוח סטטי
+        run: flutter analyze
+        continue-on-error: true
+
+      - run: flutter test
+
+      - name: בנייה
+        run: flutter build ${{ matrix.platform }} --release --build-name=${{ needs.version.outputs.number }} --dart-define=APP_VERSION=${{ needs.version.outputs.number }}
+
+      # אריזה (Windows): exe יחיד שרץ בלי התקנה (7-Zip SFX). הוא מחלץ את עצמו לתיקייה זמנית ומריץ משם.
+      - name: אריזת exe יחיד (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://www.7-zip.org/a/7zr.exe -OutFile 7zr.exe
+          Invoke-WebRequest https://www.7-zip.org/a/lzma2301.7z -OutFile lzma.7z
+          ./7zr.exe x -y -olzma lzma.7z | Out-Null
+          # אייקון התוכנה גם על קובץ ה-exe היחיד
+          Invoke-WebRequest https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe -OutFile rcedit.exe
+          # מניפסט asInvoker: בלי אישור מנהל
+          ./rcedit.exe lzma/bin/7zS2.sfx --set-icon windows/runner/resources/app_icon.ico --application-manifest windows/runner/sfx.manifest
+          ./7zr.exe a -mx=9 payload.7z ./build/windows/x64/runner/Release/* | Out-Null
+          $cfg = ";!@Install@!UTF-8!`nTitle=`"מחולל קישורים וכותרות לאוצריא`"`nRunProgram=`"otzaria_link_maker.exe`"`nGUIMode=`"2`"`n;!@InstallEnd@!`n"
+          [IO.File]::WriteAllText("$PWD\cfg.txt", $cfg, (New-Object Text.UTF8Encoding($false)))
+          $out = [IO.File]::Create("$PWD\OtzariaLinkMaker.exe")
+          foreach ($f in @("lzma/bin/7zS2.sfx", "cfg.txt", "payload.7z")) {
+            $b = [IO.File]::ReadAllBytes("$PWD\$f"); $out.Write($b, 0, $b.Length)
+          }
+          $out.Close()
+          # גם תיקייה רגילה (zip) למי שמעדיף בלי חילוץ עצמי
+          Compress-Archive -Path ./build/windows/x64/runner/Release/* -DestinationPath OtzariaLinkMaker-windows.zip
+          Get-Item OtzariaLinkMaker.exe, OtzariaLinkMaker-windows.zip | Select-Object Name, Length
+
+      # אריזה (macOS) - ללא חתימה; Gatekeeper יתריע בפעם הראשונה
+      - name: אריזת zip (macOS)
+        if: matrix.platform == 'macos'
+        run: ditto -c -k --keepParent build/macos/Build/Products/Release/*.app OtzariaLinkMaker-macos.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OtzariaLinkMaker-${{ matrix.platform }}
+          path: |
+            OtzariaLinkMaker.exe
+            OtzariaLinkMaker-windows.zip
+            OtzariaLinkMaker-macos.zip
+          if-no-files-found: ignore
+
+  release:
+    # בענפים אחרים (בדיקה) נבנה רק artifact, בלי Release
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    # Release בכל ריצה מוצלחת: בתג v* לפי התג, ובכל שינוי קוד ב-main נוצרת גרסה חדשה.
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            dist/OtzariaLinkMaker.exe
+            dist/OtzariaLinkMaker-windows.zip
+            dist/OtzariaLinkMaker-macos.zip
